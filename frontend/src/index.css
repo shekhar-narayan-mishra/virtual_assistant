@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@theme {
+  --animate-wave: wave 1s ease-in-out infinite;
+  
+  @keyframes wave {
+    0%, 100% { height: 10%; }
+    50% { height: 100%; }
+  }
+}
