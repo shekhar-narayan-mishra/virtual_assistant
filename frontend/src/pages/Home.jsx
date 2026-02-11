@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { CgMenuRight } from "react-icons/cg";
 import { RxCross1 } from "react-icons/rx";
-import { IoMic, IoMicOff, IoChatbubbleEllipses } from "react-icons/io5";
+import { IoMic, IoMicOff } from "react-icons/io5";
 import { MdDelete } from "react-icons/md";
+import { BsChatDots } from "react-icons/bs";
+import ChatBubble from '../components/ChatBubble';
 import VoiceVisualizer from '../components/VoiceVisualizer';
 
 function Home() {
@@ -13,9 +15,8 @@ function Home() {
   const navigate = useNavigate()
   const [listening, setListening] = useState(false)
   const [userText, setUserText] = useState("")
-  const [inputText, setInputText] = useState("") // New state for text input
   const [aiText, setAiText] = useState("")
-  const [isMicOn, setIsMicOn] = useState(true) // Default to true (auto-start listening)
+  const [isMicOn, setIsMicOn] = useState(false) // Default to false (silent start)
   const isSpeakingRef = useRef(false)
   const recognitionRef = useRef(null)
   const [ham, setHam] = useState(false)
@@ -45,16 +46,21 @@ function Home() {
 
   const handleClearHistory = async () => {
     try {
-      if (userData?._id === "guest") {
-        setUserData(prev => ({ ...prev, history: [] }));
-        localStorage.setItem("guestProfile", JSON.stringify({ ...userData, history: [] }));
-        setChatOpen(false);
+      // Check if user is a guest
+      if (userData && userData.isGuest) {
+        // For guest users, just clear localStorage and update state
+        const clearedUserData = { ...userData, history: [] };
+        localStorage.setItem('guestUser', JSON.stringify(clearedUserData));
+        setUserData(clearedUserData);
         setHam(false);
-        return;
+        setChatOpen(false);
+      } else {
+        // For authenticated users, call the API
+        await axios.delete(`${serverUrl}/api/user/history`, { withCredentials: true })
+        setUserData(prev => ({ ...prev, history: [] }))
+        setHam(false)
+        setChatOpen(false)
       }
-      await axios.delete(`${serverUrl}/api/user/history`, { withCredentials: true })
-      setUserData(prev => ({ ...prev, history: [] }))
-      setHam(false)
     } catch (error) {
       console.error("Failed to clear history", error)
     }
@@ -74,13 +80,11 @@ function Home() {
 
   const speak = (text) => {
     const utterence = new SpeechSynthesisUtterance(text)
-    utterence.lang = 'en-US';
-    utterence.rate = 1.1; // Slightly faster for more natural speech
-    utterence.pitch = 1.0;
+    utterence.lang = 'hi-IN';
     const voices = window.speechSynthesis.getVoices()
-    const englishVoice = voices.find(v => v.lang.startsWith('en-'));
-    if (englishVoice) {
-      utterence.voice = englishVoice;
+    const hindiVoice = voices.find(v => v.lang === 'hi-IN');
+    if (hindiVoice) {
+      utterence.voice = hindiVoice;
     }
 
 
@@ -96,48 +100,8 @@ function Home() {
     synth.speak(utterence);
   }
 
-  const handleInputSubmit = async (e) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
-
-    const command = inputText.trim();
-    setInputText("");
-    setUserText(command);
-
-    // Optimistic UI update
-    // userData.history.push({ role: "user", content: command }); // Don't do this directly if context handles it via API result? 
-    // Actually UserContext doesn't auto-update history on API call, backend does. But for guest, we need to handle it?
-    // The previous implementation of `getGeminiResponse` returns data but doesn't update context history automatically for guest?
-    // Wait, the guest logic in `UserContext` only returns data. `handleCommand` expects `data`. 
-    // We might need to manually update history for Guest?
-    // Let's check `UserContext` again. `updateGuestProfile` was added but not called in `getGeminiResponse`.
-
-    const data = await getGeminiResponse(command);
-
-    if (data) {
-      setAiText(data.response);
-      handleCommand(data);
-      if (userData?._id === "guest") {
-        // Manually update history for guest because backend doesn't save it to DB
-        const newHistory = [...userData.history, { role: "user", content: command }, { role: "assistant", content: data.response }];
-        // We need a way to update userData history. I added `updateGuestProfile` in UserContext but need to expose it or use setUserData.
-        // Let's just use userDataContext's setUserData which is available here.
-        setUserData(prev => {
-          const updated = { ...prev, history: newHistory };
-          localStorage.setItem("guestProfile", JSON.stringify(updated));
-          return updated;
-        });
-      }
-    } else {
-      setAiText("I couldn't connect to the server.");
-      speak("I couldn't connect to the server.");
-    }
-  }
-
   const handleCommand = (data) => {
     if (!data) return;
-
-    setUserText(""); // Clear user text after command is processed
 
     const { type, userInput, response } = data
     speak(response);
@@ -240,54 +204,25 @@ function Home() {
 
     recognition.onresult = async (e) => {
       const transcript = e.results[e.results.length - 1][0].transcript.trim();
-      const lowerTranscript = transcript.toLowerCase();
-      const assistantNameLower = userData.assistantName.toLowerCase();
 
-      // Check if wake word is detected
-      if (lowerTranscript.includes(assistantNameLower)) {
-        // Extract command (remove wake word)
-        const command = transcript.replace(new RegExp(userData.assistantName, 'gi'), '').trim();
-
+      if (transcript.toLowerCase().includes(userData.assistantName.toLowerCase())) {
         setUserText(transcript);
-        setAiText(""); // Clear previous AI response
 
         // Stop recognition while processing
         isSpeakingRef.current = true;
-        recognition.stop();
 
-        const data = await getGeminiResponse(command || transcript);
+        const data = await getGeminiResponse(transcript);
 
         if (data) {
           setAiText(data.response);
           handleCommand(data);
-
-          // Add voice conversation to history
-          if (userData?._id === "guest") {
-            const newHistory = [
-              ...userData.history,
-              { role: "user", content: transcript },
-              { role: "assistant", content: data.response }
-            ];
-            setUserData(prev => {
-              const updated = { ...prev, history: newHistory };
-              localStorage.setItem("guestProfile", JSON.stringify(updated));
-              return updated;
-            });
-          }
-
-          // Speak will handle restarting recognition
         } else {
           // Fallback if API fails
-          const errorMsg = "I couldn't connect to the server.";
-          setAiText(errorMsg);
-          speak(errorMsg);
+          setAiText("I couldn't connect to the server.");
+          speak("I couldn't connect to the server.");
         }
-      } else {
-        // No wake word detected, show feedback briefly then clear
-        setUserText(transcript);
-        setTimeout(() => {
-          setUserText("");
-        }, 2000);
+
+        // speak() function handles restarting recognition when done
       }
     };
 
@@ -319,131 +254,141 @@ function Home() {
       {/* Header / Sidebar Toggle */}
       <CgMenuRight className='lg:hidden text-white absolute top-[20px] right-[20px] w-[30px] h-[30px] z-50 cursor-pointer' onClick={() => setHam(true)} />
 
-      {/* Sidebar */}
+      {/* Mobile Hamburger Sidebar */}
       <div className={`fixed inset-0 z-40 bg-black/80 backdrop-blur-md transition-transform transform ${ham ? "translate-x-0" : "translate-x-full"} lg:hidden flex justify-end`}>
         <div className='w-[80%] max-w-[300px] h-full bg-gray-800 p-6 shadow-2xl flex flex-col gap-6'>
           <RxCross1 className='text-white w-[30px] h-[30px] cursor-pointer self-end' onClick={() => setHam(false)} />
           <div className='flex flex-col gap-4 mt-10'>
-            <button className='w-full py-3 bg-red-500 rounded-xl text-white font-semibold flex items-center justify-center gap-2 hover:bg-red-600 transition' onClick={handleClearHistory}><MdDelete /> Clear History</button>
             <button className='w-full py-3 bg-white rounded-xl text-black font-semibold hover:bg-gray-200 transition' onClick={() => navigate("/customize")}>Customize</button>
             <button className='w-full py-3 border border-white rounded-xl text-white font-semibold hover:bg-white/10 transition' onClick={handleLogOut}>Log Out</button>
           </div>
         </div>
       </div>
 
-      {/* Desktop Controls (Top Right) */}
-      <div className='hidden lg:flex absolute top-6 right-6 gap-4'>
-        <button className='px-6 py-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition' onClick={handleLogOut}>Log Out</button>
-        <button className='px-6 py-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition' onClick={() => navigate("/customize")}>Customize</button>
-        <button className='px-6 py-2 bg-red-500/80 text-white rounded-full flex items-center gap-2 hover:bg-red-500 transition' onClick={handleClearHistory}><MdDelete /> Clear</button>
-      </div>
-
-      {/* Main Visualizer Area - Simplified like reference */}
-      <div className='relative z-10 flex flex-col items-center justify-center flex-1 w-full'>
-        {/* Assistant Info */}
-        <div className='flex flex-col items-center justify-center mb-8 opacity-80 hover:opacity-100 transition-opacity'>
-          <div className='w-24 h-24 rounded-full overflow-hidden border-2 border-blue-500/20 shadow-lg mb-3'>
-            <img src={userData?.assistantImage} alt="Assistant" className='w-full h-full object-cover' />
-          </div>
-          <h2 className='text-white text-base font-medium tracking-wide'>I'm {userData?.assistantName}</h2>
-        </div>
-
-        {/* Visualizer */}
-        <div className='h-32 w-full flex items-center justify-center mb-8'>
-          {listening && isMicOn ? (
-            <VoiceVisualizer isActive={true} />
-          ) : null}
-        </div>
-
-        {/* Status Text */}
-        <div className='mt-4 h-16 text-center px-4'>
-          {userText && (
-            <p className='text-blue-300 text-lg mb-2 animate-fade-in'>{userText}</p>
-          )}
-          {aiText && (
-            <p className='text-gray-300 text-base animate-fade-in'>{aiText}</p>
-          )}
-          {!userText && !aiText && (
-            <p className='text-gray-500 text-sm tracking-widest uppercase'>
-              {isMicOn ? "Listening..." : "Tap Mic to Start"}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div ref={chatEndRef} />
-
-      {/* Chat Sidebar Overlay */}
-      <div className={`fixed top-0 right-0 h-full w-full sm:w-[400px] bg-gray-900/95 backdrop-blur-lg border-l border-gray-700 shadow-2xl transition-transform duration-300 ease-in-out z-50 ${chatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className='flex flex-col h-full'>
-          {/* Header */}
-          <div className='flex items-center justify-between p-6 border-b border-gray-700'>
-            <h2 className='text-white text-xl font-semibold'>Chat</h2>
-            <RxCross1 className='text-white w-[25px] h-[25px] cursor-pointer hover:text-gray-400 transition' onClick={() => setChatOpen(false)} />
+      {/* Chat Sidebar */}
+      <div className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity ${chatOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`} onClick={() => setChatOpen(false)}>
+        <div className={`fixed right-0 top-0 h-full w-full max-w-md bg-slate-800 shadow-2xl transform transition-transform ${chatOpen ? "translate-x-0" : "translate-x-full"}`} onClick={(e) => e.stopPropagation()}>
+          {/* Chat Header */}
+          <div className='flex items-center justify-between p-6 border-b border-slate-700'>
+            <div className='flex items-center gap-3'>
+              <BsChatDots className='text-blue-400 text-2xl' />
+              <h2 className='text-white text-xl font-semibold'>Chat</h2>
+            </div>
+            <div className='flex items-center gap-3'>
+              <button className='p-2 hover:bg-slate-700 rounded-lg transition text-red-400 hover:text-red-300' onClick={handleClearHistory} title="Clear History">
+                <MdDelete className='text-xl' />
+              </button>
+              <button className='p-2 hover:bg-slate-700 rounded-lg transition' onClick={() => setChatOpen(false)}>
+                <RxCross1 className='text-white text-xl' />
+              </button>
+            </div>
           </div>
 
-          {/* Messages */}
-          <div className='flex-1 overflow-y-auto p-4 space-y-3'>
+          {/* Chat Content */}
+          <div className='flex-1 overflow-y-auto p-6 h-[calc(100vh-88px)] flex flex-col gap-2'>
             {userData && userData.history && userData.history.length > 0 ? (
               userData.history.map((msg, index) => (
                 typeof msg === 'object' ? (
-                  <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] px-4 py-2 rounded-2xl ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-200'}`}>
-                      <p className='text-sm'>{msg.content}</p>
-                    </div>
-                  </div>
+                  <ChatBubble key={index} role={msg.role} content={msg.content} />
                 ) : (
-                  <div key={index} className="text-gray-500 text-xs text-center py-1">Legacy: {msg}</div>
+                  <div key={index} className="text-gray-400 text-xs text-center py-1">Legacy: {msg}</div>
                 )
               ))
             ) : (
-              <div className='flex items-center justify-center h-full'>
-                <p className='text-gray-500 text-center'>No messages yet.</p>
-              </div>
+              <div className='flex-1 flex items-center justify-center text-gray-500 text-sm'>No messages yet.</div>
             )}
+            <div ref={chatEndRef} />
           </div>
+        </div>
+      </div>
 
-          {/* Input Form */}
-          <form onSubmit={handleInputSubmit} className='p-4 border-t border-gray-700'>
-            <div className='flex gap-2'>
-              <input
-                type='text'
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder='Type your message...'
-                className='flex-1 px-4 py-3 bg-gray-800 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500'
-              />
-              <button
-                type='submit'
-                className='px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition font-medium'
-              >
-                Send
-              </button>
+      {/* Desktop Controls (Top Right) */}
+      <div className='hidden lg:flex absolute top-6 right-6 gap-4'>
+        <button className='px-6 py-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition' onClick={() => navigate("/customize")}>Customize</button>
+        <button className='px-6 py-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition' onClick={handleLogOut}>Log Out</button>
+      </div>
+
+      {/* Main Visualizer Area */}
+      <div className='w-full flex-1 flex flex-col items-center justify-center p-4'>
+        {/* Center Visualizer / Assistant Info */}
+        <div className='flex flex-col items-center justify-center gap-6'>
+          {listening && isMicOn ? (
+            <VoiceVisualizer isActive={true} />
+          ) : (
+            <div className='flex flex-col items-center justify-center opacity-70 hover:opacity-100 transition-opacity'>
+              <div className='w-24 h-24 rounded-full overflow-hidden border-2 border-blue-500/30 shadow-lg mb-3 bg-gradient-to-br from-gray-800 to-gray-900'>
+                <img
+                  src={userData?.assistantImage || '/src/assets/ai.gif'}
+                  alt="Assistant"
+                  className='w-full h-full object-cover'
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="40" fill="%23374151"/%3E%3Ctext x="50" y="58" font-size="40" text-anchor="middle" fill="%239CA3AF"%3EAI%3C/text%3E%3C/svg%3E';
+                  }}
+                />
+              </div>
+              <h2 className='text-white text-lg font-medium tracking-wide'>I am {userData?.assistantName || "Assistant"}</h2>
+              <p className='text-gray-400 text-sm mt-2'>
+                {isMicOn ? "Say my name to start..." : "Tap mic to start"}
+              </p>
             </div>
-          </form>
+          )}
+
+          {/* Subtitles - What user said and what AI is saying */}
+          {(userText || aiText) && (
+            <div className='mt-8 max-w-2xl mx-auto text-center space-y-3'>
+              {userText && (
+                <div className='bg-white/5 backdrop-blur-sm px-6 py-3 rounded-lg border border-white/10'>
+                  <p className='text-gray-400 text-xs uppercase tracking-wider mb-1'>You said</p>
+                  <p className='text-white text-base font-light'>{userText}</p>
+                </div>
+              )}
+              {aiText && (
+                <div className='bg-blue-500/10 backdrop-blur-sm px-6 py-3 rounded-lg border border-blue-500/20'>
+                  <p className='text-blue-400 text-xs uppercase tracking-wider mb-1'>{userData?.assistantName || "Assistant"}</p>
+                  <p className='text-white text-base font-light'>{aiText}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Bottom Control Bar */}
-      <div className='absolute bottom-0 w-full p-6 bg-gradient-to-t from-gray-900 via-gray-900/90 to-transparent flex flex-col items-center justify-center gap-4'>
-        {/* Control Buttons */}
-        <div className='flex items-center gap-4'>
-          {/* Chat Button */}
-          <button
-            className='w-14 h-14 rounded-full flex items-center justify-center text-2xl bg-gray-700 text-gray-400 shadow-lg transition-all transform hover:scale-105 hover:bg-gray-600'
-            onClick={() => setChatOpen(!chatOpen)}
-          >
-            <IoChatbubbleEllipses />
-          </button>
+      <div className='absolute bottom-0 w-full p-6 bg-gradient-to-t from-gray-900 via-gray-900/95 to-transparent flex items-center justify-center gap-6'>
 
-          {/* Mic Button */}
-          <button
-            className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl shadow-lg transition-all transform hover:scale-105 ${isMicOn ? 'bg-blue-600 text-white shadow-blue-500/50' : 'bg-gray-700 text-gray-400'
-              }`}
-            onClick={() => setIsMicOn(!isMicOn)}
-          >
-            {isMicOn ? <IoMic /> : <IoMicOff />}
-          </button>
+        {/* Chat Toggle Button */}
+        <button
+          className='w-14 h-14 rounded-full bg-slate-700 hover:bg-slate-600 text-gray-300 hover:text-white flex items-center justify-center text-2xl shadow-lg transition-all transform hover:scale-105'
+          onClick={() => setChatOpen(!chatOpen)}
+          title="Toggle Chat"
+        >
+          <BsChatDots />
+        </button>
+
+        {/* Mic Button */}
+        <button
+          className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl shadow-lg transition-all transform hover:scale-110 ${isMicOn
+            ? 'bg-blue-600 text-white shadow-[0_0_30px_rgba(37,99,235,0.6)] scale-105'
+            : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
+            }`}
+          onClick={() => setIsMicOn(!isMicOn)}
+          title={isMicOn ? "Turn off microphone" : "Turn on microphone"}
+        >
+          {isMicOn ? <IoMic /> : <IoMicOff />}
+        </button>
+
+        {/* Status Text */}
+        <div className='w-14 h-14 flex items-center justify-center'>
+          <p className='text-gray-500 text-xs font-medium text-center leading-tight'>
+            {listening && isMicOn ? (
+              <span className='text-blue-400 animate-pulse'>Listening</span>
+            ) : isMicOn ? (
+              <span>Ready</span>
+            ) : (
+              <span>Off</span>
+            )}
+          </p>
         </div>
       </div>
 
