@@ -3,69 +3,6 @@ import groqResponse from "../grok.js"
 import User from "../models/user.model.js"
 import moment from "moment"
 
-export const askToAssistantGuest = async (req, res) => {
-   try {
-      const { command } = req.body
-      const userName = "Guest"
-      const assistantName = "Jarvis" // Default for guest
-
-      const result = await groqResponse(command, assistantName, userName)
-
-      const jsonMatch = result.match(/{[\s\S]*}/)
-      if (!jsonMatch) {
-         return res.status(400).json({ response: "sorry, i can't understand" })
-      }
-      const gemResult = JSON.parse(jsonMatch[0])
-      console.log(gemResult)
-      const type = gemResult.type
-
-      let aiResponse = "";
-
-      switch (type) {
-         case 'get-date':
-            aiResponse = `current date is ${moment().format("YYYY-MM-DD")}`;
-            break;
-         case 'get-time':
-            aiResponse = `current time is ${moment().format("hh:mm A")}`;
-            break;
-         case 'get-day':
-            aiResponse = `today is ${moment().format("dddd")}`;
-            break;
-         case 'get-month':
-            aiResponse = `today is ${moment().format("MMMM")}`;
-            break;
-         case 'google-search':
-         case 'google-open':
-         case 'youtube-search':
-         case 'youtube-play':
-         case 'youtube-open':
-         case 'general':
-         case "calculator-open":
-         case "instagram-open":
-         case "facebook-open":
-         case "weather-show":
-            aiResponse = gemResult.response;
-            break;
-         case 'chat-clear':
-            aiResponse = gemResult.response;
-            break;
-         default:
-            aiResponse = gemResult.response;
-      }
-
-      return res.json({
-         type,
-         userInput: gemResult.userInput,
-         response: aiResponse,
-      });
-
-   } catch (error) {
-      console.error(error);
-      return res.status(500).json({ response: "ask assistant guest error" })
-   }
-}
-
-
 export const getCurrentUser = async (req, res) => {
    try {
       const userId = req.userId
