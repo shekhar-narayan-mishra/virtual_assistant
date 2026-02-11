@@ -3,7 +3,6 @@ import User from "../models/user.model.js"
 import bcrypt from "bcryptjs"
 export const signUp=async (req,res)=>{
 try {
-    console.log("Signup request received:", req.body)
     const {name,email,password}=req.body
 
     const existEmail=await User.findOne({email})
@@ -29,23 +28,10 @@ try {
        secure:false
     })
 
-    console.log("User created successfully:", user._id)
-    
-    // Return user without password
-    const userResponse = {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        assistantName: user.assistantName,
-        assistantImage: user.assistantImage,
-        history: user.history
-    }
-    
-    return res.status(201).json(userResponse)
+    return res.status(201).json(user)
 
 } catch (error) {
-       console.error("Signup error:", error)
-       return res.status(500).json({message:`sign up error ${error.message}`})
+       return res.status(500).json({message:`sign up error ${error}`})
 }
 }
 
@@ -72,17 +58,7 @@ try {
        secure:false
     })
 
-    // Return user without password
-    const userResponse = {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        assistantName: user.assistantName,
-        assistantImage: user.assistantImage,
-        history: user.history
-    }
-
-    return res.status(200).json(userResponse)
+    return res.status(200).json(user)
 
 } catch (error) {
        return res.status(500).json({message:`login error ${error}`})
