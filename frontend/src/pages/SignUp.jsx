@@ -7,7 +7,7 @@ import { userDataContext } from '../context/UserContext';
 import axios from "axios"
 function SignUp() {
   const [showPassword, setShowPassword] = useState(false)
-  const { serverUrl, userData, setUserData } = useContext(userDataContext)
+  const { serverUrl, userData, setUserData, loginAsGuest } = useContext(userDataContext)
   const navigate = useNavigate()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -51,6 +51,8 @@ function SignUp() {
           *{err}
         </p>}
         <button className='min-w-[150px] h-[60px] mt-[30px] text-black font-semibold  bg-white rounded-full text-[19px] ' disabled={loading}>{loading ? "Loading..." : "Sign Up"}</button>
+
+        <button type="button" className='min-w-[150px] h-[60px] text-white font-semibold border-2 border-white/40 bg-white/5 backdrop-blur-sm hover:bg-white/15 hover:border-white/60 rounded-full text-[19px] transition-all duration-300' onClick={() => loginAsGuest(navigate)}>Continue as Guest</button>
 
         <p className='text-[white] text-[18px] cursor-pointer' onClick={() => navigate("/signin")}>Already have an account ? <span className='text-blue-400'>Sign In</span></p>
       </form>
