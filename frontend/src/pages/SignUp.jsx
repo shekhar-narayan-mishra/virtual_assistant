@@ -52,7 +52,7 @@ function SignUp() {
         </p>}
         <button className='min-w-[150px] h-[60px] mt-[30px] text-black font-semibold  bg-white rounded-full text-[19px] ' disabled={loading}>{loading ? "Loading..." : "Sign Up"}</button>
 
-        <button type="button" className='min-w-[150px] h-[60px] text-white font-semibold border-2 border-white/40 bg-white/5 backdrop-blur-sm hover:bg-white/15 hover:border-white/60 rounded-full text-[19px] transition-all duration-300' onClick={() => loginAsGuest(navigate)}>Continue as Guest</button>
+        <button type="button" className='min-w-[150px] h-[60px] text-white font-semibold border-2 border-white/80 bg-white/20 backdrop-blur-md hover:bg-white/30 hover:border-white rounded-full text-[19px] transition-all duration-300 shadow-lg' onClick={() => loginAsGuest(navigate)}>Continue as Guest</button>
 
         <p className='text-[white] text-[18px] cursor-pointer' onClick={() => navigate("/signin")}>Already have an account ? <span className='text-blue-400'>Sign In</span></p>
       </form>
