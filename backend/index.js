@@ -9,20 +9,23 @@ import userRouter from "./routes/user.routes.js"
 import groqResponse from "./grok.js"
 
 
-const app=express()
+const app = express()
+const allowedOrigins = ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176"]
+if (process.env.FRONTEND_URL) {
+    allowedOrigins.push(process.env.FRONTEND_URL)
+}
 app.use(cors({
-    origin:["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176"],
-    credentials:true
+    origin: allowedOrigins,
+    credentials: true
 }))
-const port=process.env.PORT || 5000
+const port = process.env.PORT || 5000
 app.use(express.json())
 app.use(cookieParser())
-app.use("/api/auth",authRouter)
-app.use("/api/user",userRouter)
+app.use("/api/auth", authRouter)
+app.use("/api/user", userRouter)
 
 
-app.listen(port,()=>{
+app.listen(port, () => {
     connectDb()
     console.log("server started")
 })
-
