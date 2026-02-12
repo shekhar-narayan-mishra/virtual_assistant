@@ -1,8 +1,9 @@
 import axios from 'axios'
 import React, { createContext, useEffect, useState } from 'react'
+import defaultAssistantImage from '../assets/authBg.png'
 export const userDataContext = createContext()
 function UserContext({ children }) {
-  const serverUrl = import.meta.env.VITE_API_URL || "http://localhost:8000"
+  const serverUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_APP_URL || "http://localhost:8000"
   const [userData, setUserData] = useState(null)
   const [frontendImage, setFrontendImage] = useState(null)
   const [backendImage, setBackendImage] = useState(null)
@@ -28,7 +29,7 @@ function UserContext({ children }) {
       name: 'Guest User',
       email: 'guest@virtualassistant.local',
       assistantName: 'Jarvis',
-      assistantImage: '/src/assets/authBg.png',
+      assistantImage: defaultAssistantImage,
       isGuest: true,
       history: []
     }
