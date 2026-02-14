@@ -32,7 +32,7 @@ function SignUp() {
       if (error.response && error.response.data) {
         setErr(error.response.data.message)
       } else {
-        setErr("Something went wrong. Please try again.")
+        setErr("Cannot connect to server. Please try again later or continue as guest.")
       }
     }
   }

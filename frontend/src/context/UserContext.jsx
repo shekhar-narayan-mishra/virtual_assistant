@@ -3,7 +3,11 @@ import React, { createContext, useEffect, useState } from 'react'
 import defaultAssistantImage from '../assets/authBg.png'
 export const userDataContext = createContext()
 function UserContext({ children }) {
-  const serverUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_APP_URL || "http://localhost:8000"
+  // If VITE_API_URL is set, use it.
+  // Otherwise, if running on localhost, default to http://localhost:8000
+  // If running in production (not localhost) and no VITE_API_URL is set, use empty string (relative path)
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const serverUrl = import.meta.env.VITE_API_URL || (isLocalhost ? "http://localhost:8000" : "https://virtual-assistant-zens.onrender.com");
   const [userData, setUserData] = useState(null)
   const [frontendImage, setFrontendImage] = useState(null)
   const [backendImage, setBackendImage] = useState(null)
