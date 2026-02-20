@@ -7,7 +7,7 @@ function UserContext({ children }) {
   // Otherwise, if running on localhost, default to http://localhost:8000
   // If running in production (not localhost) and no VITE_API_URL is set, use empty string (relative path)
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const serverUrl = import.meta.env.VITE_API_URL || (isLocalhost ? "http://localhost:8000" : "https://virtual-assistant-zens.onrender.com");
+  const serverUrl = import.meta.env.VITE_API_URL || (isLocalhost ? "http://localhost:8000" : "");
   const [userData, setUserData] = useState(null)
   const [frontendImage, setFrontendImage] = useState(null)
   const [backendImage, setBackendImage] = useState(null)

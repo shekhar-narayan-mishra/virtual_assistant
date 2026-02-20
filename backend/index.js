@@ -7,7 +7,11 @@ import cors from "cors"
 import cookieParser from "cookie-parser"
 import userRouter from "./routes/user.routes.js"
 import groqResponse from "./grok.js"
+import path from "path"
+import { fileURLToPath } from "url"
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const app = express()
 const allowedOrigins = ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176", "https://virtual-assistant-2-98w8.onrender.com"]
@@ -24,6 +28,13 @@ app.use(cookieParser())
 app.use("/api/auth", authRouter)
 app.use("/api/user", userRouter)
 
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, "../frontend/dist")))
+
+// SPA catch-all: serve index.html for any non-API route
+app.get("/{*splat}", (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/dist", "index.html"))
+})
 
 app.listen(port, () => {
     connectDb()
