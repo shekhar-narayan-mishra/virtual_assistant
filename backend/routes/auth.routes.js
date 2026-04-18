@@ -8,7 +8,7 @@ authRouter.post("/signup", signup)
 authRouter.post("/signin", Login)
 authRouter.post("/google-login", googleLogin)
 authRouter.post("/github-login", githubLogin)
-authRouter.get("/Logout", logout)
+authRouter.post("/logout", logout)
 authRouter.post("/update-profile", upload.single('assistantImage'), updateProfile)
 
 export default authRouter

@@ -1,11 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, MessageSquare, LogOut, Settings, Trash2, X, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useVoice } from '../hooks/useVoice';
+import { UserDataContext } from '../context/UserContext';
 
 function Assistant() {
     const navigate = useNavigate();
+    const { logout } = useContext(UserDataContext);
     const assistantName = localStorage.getItem('assistantName') || 'Jarvis';
     const assistantImage = localStorage.getItem('assistantImage');
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -41,6 +43,7 @@ function Assistant() {
         cancelSpeech();
         localStorage.removeItem('assistantName');
         localStorage.removeItem('assistantImage');
+        logout();
         navigate('/signin');
     };
 

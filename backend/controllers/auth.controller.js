@@ -93,11 +93,16 @@ export const Login = async (req, res) => {
  */
 export const logout = async (req, res) => {
     try {
-        res.clearCookie("token")
-        return res.status(200).json({ message: "Logout Succesfull" })
+        res.clearCookie("token", {
+            httpOnly: true,
+            sameSite: "none",
+            secure: true
+        })
+        return res.status(200).json({ message: "Logout Successful" })
 
     } catch (error) {
-        return res.status(500).json({ message: `Logout error${error}` })
+        console.error("Logout error:", error)
+        return res.status(500).json({ message: "An error occurred during logout" })
 
     }
 
