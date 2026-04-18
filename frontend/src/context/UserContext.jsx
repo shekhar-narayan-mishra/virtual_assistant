@@ -15,7 +15,12 @@ function UserContext({ children }) {
     return null
   })
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch(`${ServerUrl}/api/auth/logout`, { method: "POST", credentials: "include" })
+    } catch (_) {
+      // ignore network errors – clear local state regardless
+    }
     localStorage.removeItem("token")
     localStorage.removeItem("userId")
     localStorage.removeItem("userName")

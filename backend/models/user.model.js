@@ -9,7 +9,8 @@ const userSchema = new mongoose.Schema({
     // Unique user email for identification
     email: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
     // Salted and hashed password (optional for Google OAuth users)
     password: {

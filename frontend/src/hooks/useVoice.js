@@ -169,6 +169,24 @@ export const useVoice = (assistantName = 'Jarvis') => {
 
     const browserSupportsSpeechRecognition = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
+    const startListening = useCallback(() => {
+        if (!recognitionRef.current || listening) return;
+        setTranscript("");
+        isIntentionalStop.current = false;
+        try {
+            recognitionRef.current.start();
+        } catch (e) {
+            console.error("Mic start error:", e);
+        }
+    }, [listening]);
+
+    const stopListening = useCallback(() => {
+        if (!recognitionRef.current) return;
+        isIntentionalStop.current = true;
+        recognitionRef.current.stop();
+        setListening(false);
+    }, []);
+
     const speak = useCallback((text) => {
         if (!('speechSynthesis' in window)) return;
 
@@ -185,7 +203,7 @@ export const useVoice = (assistantName = 'Jarvis') => {
         utterance.onerror = () => setIsAiSpeaking(false);
 
         window.speechSynthesis.speak(utterance);
-    }, []);
+    }, [startListening]);
 
     const processInput = useCallback(async (text) => {
         if (!text) return;
@@ -206,28 +224,10 @@ export const useVoice = (assistantName = 'Jarvis') => {
 
             speak(response);
         }, 600);
-    }, [speak]);
+    }, [speak, assistantName]);
 
     const clearHistory = useCallback(() => {
         setHistory([]);
-    }, []);
-
-    const startListening = useCallback(() => {
-        if (!recognitionRef.current || listening) return;
-        setTranscript("");
-        isIntentionalStop.current = false;
-        try {
-            recognitionRef.current.start();
-        } catch (e) {
-            console.error("Mic start error:", e);
-        }
-    }, [listening]);
-
-    const stopListening = useCallback(() => {
-        if (!recognitionRef.current) return;
-        isIntentionalStop.current = true;
-        recognitionRef.current.stop();
-        setListening(false);
     }, []);
 
     useEffect(() => {
